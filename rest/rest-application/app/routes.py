@@ -3,7 +3,7 @@ import redis
 import json
 import os
 import sys
-from flask import render_template, flash, redirect, request, make_response, Response, jsonify
+from flask import render_template, flash, redirect, request, make_response, Response, jsonify, send_file
 import platform
 import io
 from minio import Minio
@@ -100,12 +100,16 @@ def get_track():
         try:  
                 data = request.get_json()
                 song_hash = data.get("hash")
-                localFileName = 'output_bass.mp3'
-                minioClient.fget_object("output", song_hash + '/bass.mp3', localFileName)
-                playsound(localFileName)
-                response_data = {
-                        "status": "SUCCESS.PLAYED THE SONG"}
-                return jsonify(response_data)
+                file_type=data.get("type", "bass")
+                localFileName = '/app/output.mp3'
+                bucketFileName = song_hash + '/' + file_type + ".mp3"
+                log_debug("Name of file I am extracting is: " + bucketFileName)
+                minioClient.fget_object("output", bucketFileName, localFileName)
+                return send_file(localFileName, as_attachment=True, download_name='seperated_track.mp3')
+                # playsound(localFileName)
+                # response_data = {
+                #         "status": "SUCCESS.PLAYED THE SONG"}
+                # return jsonify(response_data)
         except Exception as e:
                 response_data = {
                         "status": "FAILED",
