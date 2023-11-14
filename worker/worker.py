@@ -47,14 +47,12 @@ while True:
         ## e.g. b'foo' and the decoding it into UTF-* makes it print in a nice manner.
         ##
         hash_hex = work[1].decode('utf-8').split(':')[1].strip()
-        print(hash_hex)
         bucketName = "queue"
         response=None
         # Get data of an object.
         try:
             response = minioClient.fget_object(bucketName, hash_hex, './docker-facebook-demucs/input/temp.mp3')
             print("Recieved Object with key: ", hash_hex)
-            print("Object response is: ", response)
             # os.system(command)
             # print("Seperation is Done!!!!!!!!!!!")
             command = f"python3 -m demucs.separate --out ./docker-facebook-demucs/output ./docker-facebook-demucs/input/temp.mp3 --mp3"

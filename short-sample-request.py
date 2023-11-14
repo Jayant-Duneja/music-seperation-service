@@ -37,7 +37,7 @@ def mkReq(reqmethod, endpoint, data, verbose=True):
         return response.text
 
 
-for mp3 in glob.glob("data/short*mp3"):
+for mp3 in glob.glob("short-data/short*mp3"):
     print(f"Separate data/{mp3}")
     mkReq(requests.post, "apiv1/separate",
         data={

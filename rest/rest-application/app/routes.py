@@ -36,6 +36,7 @@ bucketName = "queue"
 #                secret_key=minioPasswd)
 # bucketName = "queue"
 # redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
+
 def log_debug(message):
     print("DEBUG:", message, file=sys.stdout)
     redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
@@ -45,6 +46,11 @@ def log_info(message):
     print("INFO:", message, file=sys.stdout)
     redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
     redisClient.lpush('logging', f"{message}")
+
+@app.route('/', methods=['GET'])
+def hello():
+    return '<h1> Music Separation Server</h1><p> Use a valid endpoint </p>'
+
 
 @app.route('/apiv1')
 def root():
@@ -56,7 +62,6 @@ def separate():
         log_debug("Received a POST request to separate endpoint.")
         data = request.get_json()
         mp3_base64_encoded = data.get("mp3", "Default_MP3")
-        log_debug("base 64 encoded string is: " + mp3_base64_encoded)
         # Creating Hash for request
         hash_object = hashlib.sha256(mp3_base64_encoded.encode())
         hash_hex = hash_object.hexdigest()
@@ -78,7 +83,13 @@ def separate():
                 minioClient.make_bucket(bucketName)
                 log_debug("Queue Bucket did not exist. Bucket has been created")
         log_debug("Placing song hash in Queue Bucket")
-        minioClient.fput_object(bucketName, hash_hex, 'temp.mp3')
+        result = minioClient.fput_object(bucketName, hash_hex, 'temp.mp3')
+        print(
+                "created {0} object; etag: {1}, version-id: {2}".format(
+                    result.object_name, result.etag, result.version_id,
+                )
+            )
+        log_debug("placed file in mp3 bucket: " + hash_hex)
         response_data = {
         "hash": hash_hex, 
         "reason": "Song enqueued for separation"}
@@ -93,14 +104,17 @@ def queue():
         response_data = {
                 "queue": elements}
         return jsonify(response_data)
-
-@app.route('/apiv1/track/track', methods=['GET'])
-def get_track():
+@app.route('/apiv1/<songhash>/<type>', methods=['GET'])
+def get_track(songhash, type):
         log_info("Received a GET request to play the track")
         try:  
-                data = request.get_json()
-                song_hash = data.get("hash")
-                file_type=data.get("type", "bass")
+                # data = request.get_json()
+                # song_hash = data.get("hash")
+                # file_type=data.get("type", "bass")
+                song_hash = songhash
+                file_type = type
+                log_debug("Song Hash: " + song_hash)
+                log_debug("File Type: " + file_type)
                 localFileName = '/app/output.mp3'
                 bucketFileName = song_hash + '/' + file_type + ".mp3"
                 log_debug("Name of file I am extracting is: " + bucketFileName)
@@ -116,17 +130,20 @@ def get_track():
                         "Exception: ": e}
                 return jsonify(response_data)
 
-
-@app.route('/apiv1/remove/track', methods=['DELETE'])
-def remove_track():
+@app.route('/apiv1/<songhash>/<type>', methods=['DELETE'])
+def remove_track(songhash, type):
         log_info("Received a GET request to delete the track")
         try:
-                data = request.get_json()
-                song_hash = data.get("hash")
-                minioClient.remove_object("output", song_hash + "/bass.mp3")
-                minioClient.remove_object("output", song_hash + "/vocals.mp3")
-                minioClient.remove_object("output", song_hash + "/drums.mp3")
-                minioClient.remove_object("output", song_hash + "/other.mp3")
+                song_hash = songhash
+                file_type = type
+                log_debug("Song Hash: " + song_hash)
+                log_debug("File Type: " + file_type)
+                bucketFileName = song_hash + '/' + file_type + ".mp3"
+                # minioClient.remove_object("output", song_hash + "/bass.mp3")
+                # minioClient.remove_object("output", song_hash + "/vocals.mp3")
+                # minioClient.remove_object("output", song_hash + "/drums.mp3")
+                # minioClient.remove_object("output", song_hash + "/other.mp3")
+                minioClient.remove_object("output", bucketFileName)
                 response_data = {
                         "status": "Removed the Songs"}
                 return jsonify(response_data)
